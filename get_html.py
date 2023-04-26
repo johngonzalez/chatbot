@@ -1,5 +1,6 @@
 from bs4 import BeautifulSoup
 import requests
+import re
 
 # URL de la página principal del sitio web
 url_banco = 'https://bancodebogota.com'
@@ -25,10 +26,11 @@ for link in links:
     if url_found and url_found.startswith('/wps/portal'):
         urls.append(url_banco + url_found)
 
+# Eliminar repetidas urls
 urls = list(set(urls))
 
 
-import re
+# Iteramos sobre algunas url y revisamos el resultado
 for i, url in enumerate(urls[30:40]):
     print('-'*80)
     print(i+1, url)
@@ -48,10 +50,3 @@ for i, url in enumerate(urls[30:40]):
 # 2. Algunas urls traen documentos pdf, deberían sacarsen
 # 3. La relación entre las urls puede ser muy importante
 # 4. Tal vez pasar la salida a markdown sea lo mejor. Cómo le irá a chatgpt con html?
-
-    
-
-print(urls)
-
-# Encontrar todos los enlaces en la página principal
-# links = soup.find_all('a')
