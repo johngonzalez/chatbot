@@ -57,7 +57,6 @@ for i, url in enumerate(urls):
 # Notas:
 # 1. Algunas urls no traen info y eso está bien, pq solo aparece un banner o no se encuentran
 # 2. Algunas urls traen documentos pdf, deberían sacarsen (ver 098_tasas-y-tarifas)
-# 3. Algunas páginas no aparecen en el mapa del sitio, tendría que hacerse una búsqueda más profunda (ver 164_impuestos)
+# 3. Algunas páginas no aparecen en el mapa del sitio, tendría que hacerse una búsqueda más profunda (ver 164_impuestos, 012_todas-las-tarjetas-debito.html)
 # 4. Algunas veces tenemos información adicional que no está en div.grancont-contenido (ver 164_impuestos)
 # 5. La relación entre las urls puede ser importante
-# 6. Tal vez pasar la salida a markdown sea lo mejor. Cómo le irá a chatgpt con html puro?
