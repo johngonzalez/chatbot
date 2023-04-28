@@ -1,13 +1,12 @@
 from bs4 import BeautifulSoup
 import requests
-import re
 
 # URL de la página principal del sitio web
 url_banco = 'https://bancodebogota.com'
-url = url_banco + '/wps/portal/banco-de-bogota/bogota/mapa-del-sitio'
+url_principal = url_banco + '/wps/portal/banco-de-bogota/bogota/mapa-del-sitio'
 
 # Obtener el contenido HTML de la página principal
-html = requests.get(url).content
+html = requests.get(url_principal).content
 
 # Crear un objeto BeautifulSoup para analizar el HTML
 soup = BeautifulSoup(html, 'html.parser')

@@ -3,3 +3,7 @@ langchain
 openai
 faiss-cpu
 beautifulsoup4
+lxml
+tiktoken
+unstructured
+pdfminer
