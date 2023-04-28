@@ -29,24 +29,36 @@ for link in links:
 # Eliminar repetidas urls
 urls = list(set(urls))
 
-
-# Iteramos sobre algunas url y revisamos el resultado
-for i, url in enumerate(urls[30:40]):
-    print('-'*80)
-    print(i+1, url)
-    print('-'*80)
+def extract_valuable_info_html(url):
     response = requests.get(url).content
     soup = BeautifulSoup(response, 'html.parser')
-    contenidos = soup.find_all('div', class_='grancont-contenido')
-    # tabla = soup.find('table', class_='layoutColumn')
-    # contenidos = tabla.find_all('tr')  # Se elimina encabezados y pie de pagina
-    contenido = ''.join([c.get_text() for c in contenidos])
-    contenido = re.sub('[\n]+', '\n', contenido) 
-    print(contenido)
+    contents = soup.find_all('div', class_='grancont-contenido')
+
+    # Structure html
+    title = soup.find('title').get_text()
+    meta_url = f'<meta name="url" content="{url}">'
+    set_html = lambda body: f'<html><head><title>{title}</title>{meta_url}</head>{body}</html>'
+    if contents:
+        body = '<body>' + ''.join([str(c) for c in contents]) + '</body>'
+        return {'html': set_html(body), 'with_content': True}
+    else:
+        body = '<body>' + '</body>'
+        return {'html': set_html(body), 'with_content': False}
+
+
+for i, url in enumerate(urls):
+    html_info = extract_valuable_info_html(url)
+    file_name = url.split('/')[-1] or url.split('/')[-2]
+    file_path = 'with_content' if html_info['with_content'] else 'no_content'
+    with open(f'output/html/{file_path}/{i:0>3}_{file_name}.html', 'w') as f:
+        f.write(html_info['html'])
+
 
 
 # Notas:
 # 1. Algunas urls no traen info y eso está bien, pq solo aparece un banner o no se encuentran
-# 2. Algunas urls traen documentos pdf, deberían sacarsen
-# 3. La relación entre las urls puede ser muy importante
-# 4. Tal vez pasar la salida a markdown sea lo mejor. Cómo le irá a chatgpt con html?
+# 2. Algunas urls traen documentos pdf, deberían sacarsen (ver 098_tasas-y-tarifas)
+# 3. Algunas páginas no aparecen en el mapa del sitio, tendría que hacerse una búsqueda más profunda (ver 164_impuestos)
+# 4. Algunas veces tenemos información adicional que no está en div.grancont-contenido (ver 164_impuestos)
+# 5. La relación entre las urls puede ser importante
+# 6. Tal vez pasar la salida a markdown sea lo mejor. Cómo le irá a chatgpt con html puro?
