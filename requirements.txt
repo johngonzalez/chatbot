@@ -5,5 +5,6 @@ faiss-cpu
 beautifulsoup4
 lxml
 tiktoken
-unstructured
-pdfminer
+fastapi
+uvicorn
+boto3

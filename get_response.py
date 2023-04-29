@@ -19,7 +19,7 @@ def get_response_from_query(db, query):
 
     retriever = db.as_retriever()
     docs = retriever.get_relevant_documents(query)
-    docs_page_content = " ".join([d.page_content for d in docs])
+    docs_page_content = " ".join([d.page_content for d in docs[:3]])
 
     chat = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
 
@@ -60,10 +60,14 @@ db = FAISS.load_local('output/embeddings_faiss_index', OpenAIEmbeddings())
 # question = 'El cajero automático me ha robado, que hago?'
 # question = 'El cajero automático no me dio la plata que le pedí, que hago?'
 # question = 'Cuál es el número de la servilinea en Bogotá?'
-question = 'Cuál es el número de la servilinea en Soacha?'
+# question = 'Cuál es el número de la servilinea en Soacha?'
+question = 'Si tengo un crédito preaprobado, cuál es el siguiente paso?, puedo autogestionarme?'
 get_response_from_query(db, question)
 
 
+
+## Todo: Manejar este error:   raise self.handle_error_response(
+# openai.error.InvalidRequestError: This model's maximum context length is 4097 tokens. However, your messages resulted in 4124 tokens. Please reduce the length of the messages.
 
 
 
