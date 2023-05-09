@@ -23,6 +23,8 @@ class Message(BaseModel):
     session_id: Optional[str] = None
     id: Optional[str] = None
     datetime: Optional[str] = None
+    tokens_query: Optional[int] = None
+    tokens_respo: Optional[int] = None
     text: str
     sender: str = 'user'
 
@@ -64,7 +66,7 @@ def set_messages_to_chat(messages):
                 for key, value in {
                     'id': message.id,
                     'datetime': message.datetime,
-                    'session_id': message.session_id
+                    'session_id': message.session_id,
                 }.items()
                 if value is not None
             }
@@ -75,6 +77,10 @@ def set_messages_to_chat(messages):
             message_chat = HumanMessage(**message_chat)
         elif message.sender == 'ai':
             message_chat = AIMessage(**message_chat)
+            # if hasattr(message, 'tokens_query'):
+            #     message_chat.additional_kwargs['tokens_query'] = message.tokens_query
+            # if hasattr(message, 'tokens_respo'):
+            #     message_chat.additional_kwargs['tokens_respo'] = message.tokens_respo
         else:
             raise ValueError('sender should be "system", "user" or "ai"')
         message_history.append(message_chat)
@@ -90,12 +96,17 @@ def set_messages_to_api(messages):
             'session_id': message.additional_kwargs['session_id'],
             'text': message.content,
         }
+
         if isinstance(message, SystemMessage):
             message_api['sender'] = 'system'
         elif isinstance(message, HumanMessage):
             message_api['sender'] = 'user'
         elif isinstance(message, AIMessage):
             message_api['sender'] = 'ai'
+            if 'tokens_query' in message.additional_kwargs:
+                message_api['tokens_query'] = message.additional_kwargs['tokens_query']
+            if 'tokens_respo' in message.additional_kwargs:
+                message_api['tokens_respo'] = message.additional_kwargs['tokens_respo']
         else:
             raise ValueError(
                 'message should be instance of "SystemMessage", "HumanMessage" or "AIMessage"')
@@ -125,9 +136,11 @@ async def preguntar(mensajes: List[Message]) -> dict:
     message_history = await get_response_from_query(db, message_history)
     message_history = set_messages_to_api(message_history)
     # Almacena la pregunta y la respuesta en DynamoDB
-    # print(message_history)
     dynamo_out = save_QA_dynamodb(dynamo_table, message_history)
     print('Respuesta dynamo:', dynamo_out)
+    # Todo: Consultar si es mejor que la salida sea así. Y así mismo guardarlo en dynamo
+    # Pros: Mayor reproducibilidad, Contra: Más gasto de almacenamiento
+    # {status: "success", "input": message_history[:-1], "output": message_history[-1]}
     return {"status": "success", "data": message_history}
 
 

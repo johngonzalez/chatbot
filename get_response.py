@@ -67,21 +67,22 @@ def get_token_size(message, model_name='gpt-3.5-turbo'):
     return len(encoding.encode(message))
 
 
-def get_more_context(db, messages):
+def get_more_context(db, chat, messages):
     # Tomamos el mensaje del sistema y último query del usuario
     system_message = messages[0].content
     latest_query = messages[-1].content
 
     # Revisamos cuantos tokens acumulan entre estos dos mensajes
-    token_count = get_token_size(system_message + ' ' + latest_query)
-    # print('NUM TOKENS:', token_count)
+    # token_count = get_token_size(system_message + ' ' + latest_query)
+    token_count = chat.get_num_tokens_from_messages(
+        [messages[0], messages[-1]])
 
     # Incluimos la mayor cantidad de mensajes posible si no superan 1k tokens
     new_messages = []
+
     for message in reversed(messages[1:-1]):
-        token_count += get_token_size(message.content)
-        # print('NUM TOKENS:', token_count)
-        if token_count > 1000:
+        token_count += chat.get_num_tokens(message.content) + 4
+        if token_count > 750:
             break
         new_messages.append(message.content)
 
@@ -94,6 +95,8 @@ def get_more_context(db, messages):
     # print('\n\n\nDOC\n\n\n'.join([d.page_content for d in docs]))
     context = format_context(docs)
     more_context = context['text']
+
+    # print('NUM TOKENS:', chat.get_num_tokens(get_human_message_prompt(latest_query, more_context)))
     return {
         'query_with_context': get_human_message_prompt(latest_query, more_context),
         'sources': context['sources']
@@ -105,6 +108,8 @@ async def get_response_from_query(db, messages):
     chat = ChatOpenAI(model_name=model_name, temperature=0, verbose=True)
     def get_dt(): return dt.now().strftime("%Y-%m-%dT%H:%M:%S.%f")
     default_session_id = uuid4()
+    token_limit = 4000
+
 
     # Inicializa conversación
     if len(messages) == 1:
@@ -128,52 +133,70 @@ async def get_response_from_query(db, messages):
             additional_kwargs=additional_kwargs
         )
 
-        previous_messages = [HumanMessage(
+        last_message = [HumanMessage(
             content=human_message_prompt,
             additional_kwargs=additional_kwargs
         )]
 
-        messages = [system_message] + previous_messages
+        messages = [system_message] + last_message
 
     # Continúa conversación
     else:
-        token_limit = 4000
-        context = get_more_context(db, messages)
-        # sources = context['sources']
-        lastest_query_with_context = context['query_with_context']
-
+        context = get_more_context(db, chat, messages)
         system_message = messages[0]
-        num_tokens = get_token_size(
-            system_message.content + ' ' + lastest_query_with_context)
-        # print('NUM TOKENS:', num_tokens)
-        # print(additional_kwargs)
+        last_query = context['query_with_context']
 
-        previous_messages = [HumanMessage(content=lastest_query_with_context)]
+        # Conseguir el contexto puede desbordar los tokens; se comprueba primero
+        # Todo: Aún así se debe comprobar que la misma pregunta no lo desborde
+        if chat.get_num_tokens(system_message.content + ' ' + last_query) + 8 > token_limit:
+            print('Warning: No agrega contexto último mensaje, desborda límite tokens')
+            last_query = get_human_message_prompt(messages[-1].content)
+
+        last_message = [HumanMessage(content=last_query)]
+
+        num_tokens = chat.get_num_tokens_from_messages(
+            [system_message, last_message[0]])
+
         # En reversa agregue mensajes siempre y cuando no supere el límite de tokens
-
         for message in reversed(messages[1:-1]):
-            num_tokens += get_token_size(message.content) + 4
+            # todo: Sumar los tokens del rol: system, user, assistant. Contribuyen muy poco
+            num_tokens += chat.get_num_tokens(message.content) + 4
             # print('NUM TOKENS:', num_tokens)
             if num_tokens > token_limit:
                 break
-            previous_messages = [message] + previous_messages
+            last_message = [message] + last_message
 
+        # Todo: Solo se llena la info del último msj. Pero es posible que
+        # desde el llamado a la api se tenga información sin estos campos
+        # en algunos mensajes. Para lo cual tendría que hacerse algunas
+        # validaciones primero como que session_id sea el mismo, que exista
+        # un system message en el mensaje cero. Que el orden de los mensajes
+        # sea coherente con datetime sino ordenarlos.
         messages[-1].additional_kwargs = {
-            'id': messages[-1].additional_kwargs .get('id', uuid4()),
-            'datetime': messages[-1].additional_kwargs .get('id', get_dt()),
-            'session_id': messages[0].additional_kwargs.get('session_id', default_session_id)
+            'id': messages[-1].additional_kwargs.get('id', uuid4()),
+            'datetime': messages[-1].additional_kwargs.get('id', get_dt()),
+            'session_id': messages[0].additional_kwargs.get('session_id', default_session_id),
         }
 
-    response = chat([system_message] + previous_messages)
+    q = [system_message] + last_message
+    tokens_query = chat.get_num_tokens_from_messages(q)
+    if tokens_query > token_limit:
+        print(f'Error: El número de tokens supera el límite {token_limit}')
+        raise
+
+    response = chat(q)
     response.additional_kwargs = {
         'id': uuid4(),
         'datetime': get_dt(),
-        'session_id': messages[0].additional_kwargs.get('session_id', default_session_id)
+        'session_id': messages[0].additional_kwargs.get('session_id', default_session_id),
+        'tokens_query': tokens_query,
+        'tokens_respo': chat.get_num_tokens_from_messages([response]),
     }
+
     return messages + [response]
 
 
-# db = FAISS.load_local('output/embeddings_faiss_index', OpenAIEmbeddings())
+db = FAISS.load_local('output/embeddings_faiss_index', OpenAIEmbeddings())
 # question = 'Qué pasa si no pago mi deuda a tiempo?'
 # question = 'Cuál es la estructura corporativa del banco?'
 # question = 'Quiénes son sus principales ejecutivos?'
@@ -186,17 +209,18 @@ async def get_response_from_query(db, messages):
 # question = 'Cuál es el número de la servilinea en Soacha?'
 
 
-# 1. Inicialice con el mensaje del usuario
+# # 1. Inicialice con el mensaje del usuario
 # message = Message(sender='user',
-#                   text='Hola. Vivo en Bogotá. Necesito retirar dinero')
+#                   text='Como puedo transferir usando ACH')
 
 # # Message history trae el mensaje del sistema + usuario + rta ia (3 en total)
-# message_history = get_response_from_query(db, [HumanMessage(content=message.text)])
+# message_history = get_response_from_query(
+#     db, [HumanMessage(content=message.text)])
 # print('='*80+'\nRESPUESTA\n'+'='*80 + '\n', message_history[-1])
 
-# # 2. Continue con la convesación (entran 4 msj en total)
+# # # 2. Continue con la convesación (entran 4 msj en total)
 # message = Message(sender='user',
-#                   text='específicamente en el Norte')
+#                   text='A cuáles entidades puedo hacer la transferencia?')
 
 # message_history.append(HumanMessage(content=message.text))
 
