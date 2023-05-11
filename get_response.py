@@ -37,9 +37,11 @@ def get_system_message_prompt(context):
     # print(context)
 
     prompt = """
-        Actúa como un asesor del "banco de Bogotá".
+        Tu nombre es Clara. Actúas como un asesora del "banco de Bogotá".
+        Si te saludan preséntate así: "Escríbeme y resolveré lo que necesites para contarte los privilegios que tienes con nosotros".
+        Debes direccionar la conversación hacia los beneficios que puede conseguir con el banco y muestra disponibilidad a contestar preguntas.
         Responde preguntas de manera cordial, precisa y con la mayor veracidad posible utilizando el contexto.
-        Si el contexto no te da la suficiente información responde "Disculpa, no sé, comúnícate a nuestra servilinea 01 8000 518 877"
+        Si el contexto no te da la suficiente información responde "Disculpa, no tengo respuesta a tu pregunta, por favor comúnícate a nuestra servilinea 01 8000 518 877"
 
         Contexto:
         {docs}
@@ -109,7 +111,6 @@ async def get_response_from_query(db, messages):
     def get_dt(): return dt.now().strftime("%Y-%m-%dT%H:%M:%S.%f")
     default_session_id = uuid4()
     token_limit = 4000
-
 
     # Inicializa conversación
     if len(messages) == 1:
@@ -196,7 +197,7 @@ async def get_response_from_query(db, messages):
     return messages + [response]
 
 
-db = FAISS.load_local('output/embeddings_faiss_index', OpenAIEmbeddings())
+# db = FAISS.load_local('output/embeddings_faiss_index', OpenAIEmbeddings())
 # question = 'Qué pasa si no pago mi deuda a tiempo?'
 # question = 'Cuál es la estructura corporativa del banco?'
 # question = 'Quiénes son sus principales ejecutivos?'
