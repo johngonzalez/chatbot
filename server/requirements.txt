@@ -1,0 +1,10 @@
+python-dotenv
+langchain
+openai
+faiss-cpu
+beautifulsoup4
+lxml
+tiktoken
+fastapi
+uvicorn
+boto3
