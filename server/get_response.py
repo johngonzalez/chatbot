@@ -82,6 +82,8 @@ def get_more_context(db, chat, messages):
     # Incluimos la mayor cantidad de mensajes posible si no superan 1k tokens
     new_messages = []
 
+    # Todo: Debería conseguir el contexto solo de las preguntas realizadas por el user
+    # Porque el user es el que muestra la intención, la ia podría sesgar esta intención
     for message in reversed(messages[1:-1]):
         token_count += chat.get_num_tokens(message.content) + 4
         if token_count > 750:

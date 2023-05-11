@@ -2,6 +2,7 @@
 from langchain.vectorstores import FAISS
 from langchain.embeddings import OpenAIEmbeddings
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from get_response import get_response_from_query
 import uvicorn
 import os
@@ -118,6 +119,14 @@ def set_messages_to_api(messages):
 app = FastAPI()
 db = FAISS.load_local('output/embeddings_faiss_index', OpenAIEmbeddings())
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['*'],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Configura el cliente de DynamoDB usando las credenciales de AWS desde las variables de entorno
 session = boto3.Session(
     aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
@@ -132,10 +141,15 @@ dynamo_table = dynamodb.Table("chatbot_v2")
 # Define la ruta y función de la API para realizar preguntas
 @app.post("/preguntas")
 async def preguntar(mensajes: List[Message]) -> dict:
+    print('mensajes in:', mensajes)
     message_history = set_messages_to_chat(mensajes)
+    print('mensajes to chat:', message_history)
     message_history = await get_response_from_query(db, message_history)
+    print('mensajes rta:', message_history)
     message_history = set_messages_to_api(message_history)
+    print('mensajes to api:', message_history)
     # Almacena la pregunta y la respuesta en DynamoDB
+    # Todo: Por alguna razón no está guardando la primer pregunta del user
     dynamo_out = save_QA_dynamodb(dynamo_table, message_history)
     print('Respuesta dynamo:', dynamo_out)
     # Todo: Consultar si es mejor que la salida sea así. Y así mismo guardarlo en dynamo
