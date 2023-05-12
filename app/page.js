@@ -10,6 +10,7 @@ import InputBar from '../components/InputBar'
 export default function Home() {
     const [messages, setMessages] = useState([])
     const [input, setInput] = useState('')
+    const [isFetching, setIsFetching] = useState(false);
     const inputRef = useRef(null)
 
     const handleKeyDown = (e) => {
@@ -18,19 +19,6 @@ export default function Home() {
         }
     }
 
-    // const getSystemMessage = async (userInputMessage) => {
-    //     const response = await fetch('HTTP://127.0.0.1:8000/preguntas', {
-    //         method: 'POST',
-    //         headers: {
-    //             'Content-Type': 'application/json',
-    //         },
-    //         body: JSON.stringify(userInputMessage),
-    //     })
-    //     const systemMessage = await response.json();
-    //     console.log(systemMessage)
-    //     return { text: systemMessage.system_message, sender: 'systemMessage' }
-    // }
-
     const handleSubmit = async (e) => {
         e.preventDefault()
 
@@ -38,16 +26,13 @@ export default function Home() {
         if (input.trim()) {
             const userInputMessage = { text: input, sender: 'user' }
             if (messages.length === 0) {
-                // updatedMessages = await handleChat(userInputMessage);
                 updatedMessages = [userInputMessage];
             } else {
                 updatedMessages = [...messages, userInputMessage]
-                // console.log(updatedMessages)
             }
-            setMessages(updatedMessages)
-
+            setMessages([...updatedMessages, { text: 'Consultando información...', sender: 'ia' }]);
+            setIsFetching(true);
             await handleChat(updatedMessages)
-
             setInput('')
         }
     }
@@ -60,8 +45,7 @@ export default function Home() {
     }, [input])
 
     const handleChat = async (updatedMessages) => {
-        // let accumulatedText = "";
-        fetch('http://127.0.0.1:8000/preguntas', {
+        fetch('https://mxfrne-8000.csb.app/preguntas', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -69,41 +53,10 @@ export default function Home() {
             body: JSON.stringify(updatedMessages),
         })
         .then(response => response.json())
-        .then(({data}) => {setMessages(data)})
-        // .then(response => {
-        //     const reader = response.body.getReader();
-        //     return new ReadableStream({
-        //         async start(controller) {
-        //             while (true) {
-        //                 const { done, value } = await reader.read();
-        //                 if (done) {
-        //                     break;
-        //                 }
-        //                 let newToken = new TextDecoder().decode(value);
-        //                 accumulatedText += newToken;
-        //                 controller.enqueue(newToken);
-        //             }
-        //             controller.close();
-        //             reader.releaseLock();
-        //         }
-        //     });
-        // })
-        // .then(stream => {
-        //     updatedMessages = [...updatedMessages, { text: '', sender: 'ai' }];
-        //     setMessages(updatedMessages);
-        //     const reader = stream.getReader();
-        //     reader.read().then(function processText({ done, value }) {
-        //         if (done) {
-        //             return;
-        //         }
-        //         setMessages((prevMessages) => {
-        //             let outputMessage = prevMessages[prevMessages.length - 1];
-        //             outputMessage.text = accumulatedText;
-        //             return [...prevMessages.slice(0, -1), outputMessage];
-        //         });
-        //         return reader.read().then(processText);
-        //     });
-        // });
+        .then(({data}) => {
+            setMessages(data)
+            setIsFetching(false)
+        })
     };
 
   
@@ -122,7 +75,7 @@ return (
         <div className="h-screen flex flex-col bg-gray-800 text-gray-100 font-sans font-roboto">
             <Header />
             <div className="flex-1 overflow-auto p-4 flex justify-center">
-                <ChatMessages messages={messages} />
+                <ChatMessages messages={messages} isFetching={isFetching}/>
             </div>
             <div className="border-t border-gray-700">
                 <InputBar
