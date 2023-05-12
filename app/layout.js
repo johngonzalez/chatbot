@@ -1,7 +1,7 @@
 import './globals.css'
 
 export const metadata = {
-  title: 'Pregúntale a Clara',
+  title: 'Chatea con Clara',
   description: 'Desarrollado por ADL',
 }
 

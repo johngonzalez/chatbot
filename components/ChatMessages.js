@@ -55,8 +55,8 @@ const messageContainerRef = useRef(null);
       {filteredMessages.map((message, index) => (
         <div
           key={index}
-          className={`mb-4 p-3 text-lg rounded-lg shadow-md whitespace-pre-wrap
-          ${message.sender === 'user' ? 'bg-gray-100 text-gray-800' : 'bg-gray-600'}
+          className={`mb-4 p-3 text-lg rounded-lg shadow-md whitespace-pre-wrap border-indigo-500
+          ${message.sender === 'user' ? 'bg-gray-100 text-gray-800' : 'bg-indigo-200 text-gray-800'}
           ${((messages.length > 2 && index === messages.length - 2) ||
             (messages.length == 2 && index === 1)) &&
             isFetching ? 'animate-pulse' : ''}

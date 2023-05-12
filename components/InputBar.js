@@ -18,20 +18,20 @@ const InputBar = ({ input, setInput, handleKeyDown, handleSubmit }) => {
             ref={inputRef}
             rows="1"
             placeholder="Hola Clara! Cuál tarjeta de crédito me recomiendas?"
-            className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring focus:border-blue-300 resize-none overflow-hidden bg-gray-600 text-gray-100"
+            className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring focus:border-blue-900 resize-none overflow-hidden bg-gray-100 text-gray-700"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
           />
           <button
             type="submit"
-            className="ml-2 px-2 py-1 rounded-lg bg-blue-500 text-white focus:outline-none hover:bg-blue-600 md:ml-4 md:px-4 md:py-2"
+            className="ml-2 px-2 py-1 rounded-lg bg-gray-100 text-blue-900 focus:outline-none hover:bg-gray-300 md:ml-4 md:px-4 md:py-2"
           >
-            Send
+            Envía
           </button>
         </div>
       </form>
-      <div className="pb-2 text-center text-xs text-gray-400 md:pb-4">
+      <div className="pb-2 text-center text-xs text-gray-200 md:pb-4">
         En desarrollo. Las respuestas podrían no ser correctas. Última actualización 2023-05-12
       </div>
     </div>

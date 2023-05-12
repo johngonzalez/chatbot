@@ -72,12 +72,12 @@ return (
             <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet" />
         </Head>
   
-        <div className="h-screen flex flex-col bg-gray-800 text-gray-100 font-sans font-roboto">
+        <div className="h-screen flex flex-col bg-gray-100 text-gray-100 font-sans font-roboto">
             <Header />
             <div className="flex-1 overflow-auto p-4 flex justify-center">
                 <ChatMessages messages={messages} isFetching={isFetching}/>
             </div>
-            <div className="border-t border-gray-700">
+            <div className="border-t border-gray-700 bg-blue-900">
                 <InputBar
                     input={input}
                     setInput={setInput}
