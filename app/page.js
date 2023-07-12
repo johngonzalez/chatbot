@@ -45,7 +45,7 @@ export default function Home() {
     }, [input])
 
     const handleChat = async (updatedMessages) => {
-        fetch('https://mxfrne-8000.csb.app/preguntas', {
+        fetch('https://zhgfg3-8000.csb.app/preguntas', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -63,10 +63,10 @@ export default function Home() {
 return (
     <>
         <Head>
-            <title>Hable con Clara del Banco de Bogotá</title>
+            <title>Chatea con Linguo de seguros ADL</title>
             <meta
                 name="description"
-                content="Hable con Clara del Banco de Bogotá."
+                content="Chatea con Linguo de seguros ADL."
             />
             <link rel="icon" href="/favicon.ico" />
             <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet" />
@@ -77,7 +77,7 @@ return (
             <div className="flex-1 overflow-auto p-4 flex justify-center">
                 <ChatMessages messages={messages} isFetching={isFetching}/>
             </div>
-            <div className="border-t border-gray-700 bg-blue-900">
+            <div className="border-t border-gray-700 bg-purple-900">
                 <InputBar
                     input={input}
                     setInput={setInput}

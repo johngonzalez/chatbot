@@ -23,8 +23,11 @@ class Message(BaseModel):
 
 
 def format_context(relevant_docs):
-    return {'text': ' '.join([d.page_content for d in relevant_docs]),
-            'sources': [d.metadata['source'] for d in relevant_docs]}
+    # print(relevant_docs)
+    return {
+        'text': ' '.join([d.page_content for d in relevant_docs]),
+        # 'sources': [d.metadata['source'] for d in relevant_docs]
+    }
 
 
 def get_similar_docs(db, query, k):
@@ -37,22 +40,22 @@ def get_system_message_prompt(context):
     # print(context)
 
     prompt = """
-        Tu nombre es Clara. Actúas como un asesora del "banco de Bogotá".
-        Si te saludan preséntate así: "Escríbeme y resolveré lo que necesites para contarte los privilegios que tienes con nosotros".
-        Debes direccionar la conversación hacia los beneficios que puede conseguir con el banco y muestra disponibilidad a contestar preguntas.
-        Responde preguntas de manera cordial, precisa y con la mayor veracidad posible utilizando el contexto.
-        Si el contexto no te da la suficiente información responde "Disculpa, no tengo respuesta a tu pregunta, por favor comúnícate a nuestra servilinea 01 8000 518 877"
+Tu nombre es Linguo. Actúas como un asesor de "seguros adl".
+Tu función es responder preguntas e inquitudes acerca del paquete de beneficios de los colaboradores de la empresa.
+Muestra disponibilidad y cordialidad al responder, debes ser preciso.
+Utiliza solo la información del "Contexto".
+Si el contexto no es suficiente, responde "Disculpa, no tengo respuesta a tu pregunta, dirígete a maria.forero@avaldigitallabs.com en el canal de slack"
 
-        Contexto:
-        {docs}
-        """
+"Contexto":
+{docs}
+"""
 
     return prompt.format(docs=context)
 
 
 def get_human_message_prompt(question, additional_context=None):
-    # print(additional_context)
-    partA = 'Utiliza este contexto adicional: {context}'
+    print('='*80, 'additional_context:', additional_context)
+    partA = 'Utiliza este "Contexto" adicional: {context}'
     partB = 'Pregunta: {question}'
 
     if additional_context:
@@ -84,7 +87,7 @@ def get_more_context(db, chat, messages):
 
     # Todo: Debería conseguir el contexto solo de las preguntas realizadas por el user
     # Porque el user es el que muestra la intención, la ia podría sesgar esta intención
-    for message in reversed(messages[1:-1]):
+    for message in reversed(messages[1:-1:2]):
         token_count += chat.get_num_tokens(message.content) + 4
         if token_count > 750:
             break
@@ -95,15 +98,16 @@ def get_more_context(db, chat, messages):
     query_text = '\n'.join(query_messages)
 
     # Agregue más contexto usando solo el último documento más importante. Todo: Si el documento ya está busque otro
-    docs = get_similar_docs(db, query_text, k=1)
+    docs = get_similar_docs(db, query_text, k=3)
     # print('\n\n\nDOC\n\n\n'.join([d.page_content for d in docs]))
     context = format_context(docs)
+    print(context)
     more_context = context['text']
 
     # print('NUM TOKENS:', chat.get_num_tokens(get_human_message_prompt(latest_query, more_context)))
     return {
         'query_with_context': get_human_message_prompt(latest_query, more_context),
-        'sources': context['sources']
+        # 'sources': context['sources']
     }
 
 
@@ -130,17 +134,18 @@ async def get_response_from_query(db, messages):
             'datetime': additional_kwargs.get('datetime', get_dt()),
             'session_id': additional_kwargs.get('session_id', default_session_id)
         }
-
-        system_message = SystemMessage(
-            content=system_message_prompt,
-            additional_kwargs=additional_kwargs
-        )
-
         last_message = [HumanMessage(
             content=human_message_prompt,
             additional_kwargs=additional_kwargs
         )]
 
+        # ojo! se debe crear una copia del diccionario
+        additional_kwargs_system = dict(additional_kwargs)
+        additional_kwargs_system['id'] = uuid4()
+        system_message = SystemMessage(
+            content=system_message_prompt,
+            additional_kwargs=additional_kwargs_system
+        )
         messages = [system_message] + last_message
 
     # Continúa conversación
@@ -160,7 +165,7 @@ async def get_response_from_query(db, messages):
         num_tokens = chat.get_num_tokens_from_messages(
             [system_message, last_message[0]])
 
-        # En reversa agregue mensajes siempre y cuando no supere el límite de tokens
+        # En reversa agregue mensajes del user siempre y cuando no supere el límite de tokens
         for message in reversed(messages[1:-1]):
             # todo: Sumar los tokens del rol: system, user, assistant. Contribuyen muy poco
             num_tokens += chat.get_num_tokens(message.content) + 4
@@ -195,35 +200,25 @@ async def get_response_from_query(db, messages):
         'tokens_query': tokens_query,
         'tokens_respo': chat.get_num_tokens_from_messages([response]),
     }
-
     return messages + [response]
 
+# import sys
+# base_path = '/home/john/Proyectos/chatbot/chatbot_beneficios/server'
+# sys.path.append(base_path)
+# db = FAISS.load_local(base_path + '/output/embeddings_faiss_index', OpenAIEmbeddings())
 
-# db = FAISS.load_local('output/embeddings_faiss_index', OpenAIEmbeddings())
-# question = 'Qué pasa si no pago mi deuda a tiempo?'
-# question = 'Cuál es la estructura corporativa del banco?'
-# question = 'Quiénes son sus principales ejecutivos?'
-# question = 'Gano un millón de pesos, puedo acceder a una tarjeta de crédito?'
-# question = 'Cuáles son los requisitos para acceder a una tarjeta de crédito si gano un millón de pesos?'
-# question = 'Cuáles son los beneficios de adquirir una tarjeta débito preferente?'
-# question = 'El cajero automático me ha robado, que hago?'
-# question = 'El cajero automático no me dio la plata que le pedí, que hago?'
-# question = 'Cuál es el número de la servilinea en Bogotá?'
-# question = 'Cuál es el número de la servilinea en Soacha?'
-
-
-# # 1. Inicialice con el mensaje del usuario
+# 1. Inicialice con el mensaje del usuario
 # message = Message(sender='user',
-#                   text='Como puedo transferir usando ACH')
+#                   text='Te amo')
 
 # # Message history trae el mensaje del sistema + usuario + rta ia (3 en total)
 # message_history = get_response_from_query(
 #     db, [HumanMessage(content=message.text)])
 # print('='*80+'\nRESPUESTA\n'+'='*80 + '\n', message_history[-1])
 
-# # # 2. Continue con la convesación (entran 4 msj en total)
+# # 2. Continue con la convesación (entran 4 msj en total)
 # message = Message(sender='user',
-#                   text='A cuáles entidades puedo hacer la transferencia?')
+#                   text='Pero entre estas dos, cual tiene mejor cobertura')
 
 # message_history.append(HumanMessage(content=message.text))
 

@@ -78,10 +78,6 @@ def set_messages_to_chat(messages):
             message_chat = HumanMessage(**message_chat)
         elif message.sender == 'ai':
             message_chat = AIMessage(**message_chat)
-            # if hasattr(message, 'tokens_query'):
-            #     message_chat.additional_kwargs['tokens_query'] = message.tokens_query
-            # if hasattr(message, 'tokens_respo'):
-            #     message_chat.additional_kwargs['tokens_respo'] = message.tokens_respo
         else:
             raise ValueError('sender should be "system", "user" or "ai"')
         message_history.append(message_chat)
@@ -135,7 +131,7 @@ session = boto3.Session(
 )
 
 dynamodb = session.resource("dynamodb")
-dynamo_table = dynamodb.Table("chatbot_v2")
+dynamo_table = dynamodb.Table("beneficios")
 
 
 # Define la ruta y función de la API para realizar preguntas

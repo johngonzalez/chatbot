@@ -1,18 +1,25 @@
-from langchain.text_splitter import CharacterTextSplitter
 from langchain.embeddings import OpenAIEmbeddings
-from langchain.document_loaders import DirectoryLoader
-from langchain.document_loaders import BSHTMLLoader
+from langchain.text_splitter import MarkdownHeaderTextSplitter
 from langchain.vectorstores import FAISS
 from dotenv import load_dotenv
 load_dotenv()
 
-def get_embeddigns():
-    documents = DirectoryLoader('output/html/with_content', loader_cls=BSHTMLLoader).load()
 
-    # documents = BSHTMLLoader('output/html/with_content/079_cobranza-prejudicial.html').load()
-    text_splitter = CharacterTextSplitter(separator='\n'*7, chunk_size=1000, chunk_overlap=0)
-    texts = text_splitter.split_documents(documents)
-    db = FAISS.from_documents(texts, OpenAIEmbeddings())
-    db.save_local('output/embeddings_faiss_index')
+def get_embeddigns(doc_path: str, emb_path: str) -> None:
+    markdown_splitter = MarkdownHeaderTextSplitter(
+        headers_to_split_on=[
+            ("#", "Header 1"),
+            ("##", "Header 2"),
+            ("###", "Header 3"),
+        ]
+    )
+    with open(doc_path) as f:
+        doc_app_beneficios = f.read()
 
-get_embeddigns()
+    docs_app_beneficios = markdown_splitter.split_text(doc_app_beneficios)
+    print('Cantidad documentos:', len(docs_app_beneficios))
+    db = FAISS.from_documents(docs_app_beneficios, OpenAIEmbeddings())
+    db.save_local(emb_path)
+    print('Embeddings fueron almacenados en:', emb_path)
+
+get_embeddigns('data/app_beneficios.md', 'output/embeddings_faiss_index')
