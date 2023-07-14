@@ -45,7 +45,8 @@ export default function Home() {
     }, [input])
 
     const handleChat = async (updatedMessages) => {
-        fetch('https://zhgfg3-8000.csb.app/preguntas', {
+        // fetch('https://zhgfg3-8000.csb.app/preguntas', {
+        fetch('http://localhost:8000/preguntas', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

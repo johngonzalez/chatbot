@@ -39,23 +39,17 @@ def get_similar_docs(db, query, k):
 def get_system_message_prompt(context):
     # print(context)
 
-    prompt = """
-Tu nombre es Linguo. Actúas como un asesor de "seguros adl".
+    prompt = """Tu nombre es Linguo. Actúas como un asesor de "seguros adl".
 Tu función es responder preguntas e inquitudes acerca del paquete de beneficios de los colaboradores de la empresa.
 Muestra disponibilidad y cordialidad al responder, debes ser preciso.
-Utiliza solo la información del "Contexto".
-Si el contexto no es suficiente, responde "Disculpa, no tengo respuesta a tu pregunta, dirígete a maria.forero@avaldigitallabs.com en el canal de slack"
-
-"Contexto":
-{docs}
-"""
-
+Utiliza de acuerdo a la información del "Contexto" que te suministrará el usuario.
+Si el contexto no es suficiente, responde 'Disculpa, no tengo respuesta a tu pregunta, dirígete a maria.forero@avaldigitallabs.com en el canal de slack'"""
     return prompt.format(docs=context)
 
 
 def get_human_message_prompt(question, additional_context=None):
-    print('='*80, 'additional_context:', additional_context)
-    partA = 'Utiliza este "Contexto" adicional: {context}'
+    # print('='*80, 'additional_context:', additional_context)
+    partA = '"Contexto": {context}'
     partB = 'Pregunta: {question}'
 
     if additional_context:
@@ -94,7 +88,8 @@ def get_more_context(db, chat, messages):
         new_messages.append(message.content)
 
     # Agregamos los mensajes
-    query_messages = [system_message] + new_messages + [latest_query]
+    # query_messages = [system_message] + new_messages + [latest_query]
+    query_messages = new_messages + [latest_query]
     query_text = '\n'.join(query_messages)
 
     # Agregue más contexto usando solo el último documento más importante. Todo: Si el documento ya está busque otro
@@ -125,8 +120,9 @@ async def get_response_from_query(db, messages):
         # print('\n\n\nDOC\n\n\n'.join([d.page_content for d in docs]))
         context = format_context(docs)
         # sources = context['sources']  # Todo: Pensar como exportar estas fuentes. En los mensajes?
-        system_message_prompt = get_system_message_prompt(context['text'])
-        human_message_prompt = get_human_message_prompt(query)
+        # system_message_prompt = get_system_message_prompt(context['text'])
+        system_message_prompt = get_system_message_prompt(None)
+        human_message_prompt = get_human_message_prompt(query, additional_context=context['text'])
 
         additional_kwargs = messages[0].additional_kwargs
         additional_kwargs = {
@@ -139,6 +135,10 @@ async def get_response_from_query(db, messages):
             additional_kwargs=additional_kwargs
         )]
 
+        message_user = [HumanMessage(
+            content=query,
+            additional_kwargs=additional_kwargs
+        )]
         # ojo! se debe crear una copia del diccionario
         additional_kwargs_system = dict(additional_kwargs)
         additional_kwargs_system['id'] = uuid4()
@@ -146,7 +146,7 @@ async def get_response_from_query(db, messages):
             content=system_message_prompt,
             additional_kwargs=additional_kwargs_system
         )
-        messages = [system_message] + last_message
+        messages = [system_message] + message_user # last_message
 
     # Continúa conversación
     else:
@@ -190,6 +190,7 @@ async def get_response_from_query(db, messages):
     tokens_query = chat.get_num_tokens_from_messages(q)
     if tokens_query > token_limit:
         print(f'Error: El número de tokens supera el límite {token_limit}')
+        # TODO: Enviar esto como salida de error con su mensaje
         raise
 
     response = chat(q)
@@ -207,9 +208,9 @@ async def get_response_from_query(db, messages):
 # sys.path.append(base_path)
 # db = FAISS.load_local(base_path + '/output/embeddings_faiss_index', OpenAIEmbeddings())
 
-# 1. Inicialice con el mensaje del usuario
+# # 1. Inicialice con el mensaje del usuario
 # message = Message(sender='user',
-#                   text='Te amo')
+#                   text='Hola')
 
 # # Message history trae el mensaje del sistema + usuario + rta ia (3 en total)
 # message_history = get_response_from_query(
@@ -218,7 +219,7 @@ async def get_response_from_query(db, messages):
 
 # # 2. Continue con la convesación (entran 4 msj en total)
 # message = Message(sender='user',
-#                   text='Pero entre estas dos, cual tiene mejor cobertura')
+#                   text='actualmente tengo el ahorro de vacaciones con porvenir. Quisiera saber si puedo realizar retiros totales o parciales en cualquier momento y no solo cuando pida dias de vacaciones.')
 
 # message_history.append(HumanMessage(content=message.text))
 
@@ -228,7 +229,7 @@ async def get_response_from_query(db, messages):
 
 # # 3. Continue con la convesación (entran 5 msj en total)
 # message = Message(sender='user',
-#                   text='Me puedes dar la ubicación exacta de un cajero automático cerca a cedritos')
+#                   text='')
 
 # message_history.append(HumanMessage(content=message.text))
 

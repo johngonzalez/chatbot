@@ -41,6 +41,8 @@ def save_QA_dynamodb(dynamo_table, messages):
             "session_id": str(message['session_id']),
             "text": message['text'],
             "sender": message['sender'],
+            # "context": message['id_docs'],  # [1, 3, 5]
+            # "tokens": message['tokens']
         }
         # dynamo_response = dynamo_table.put_item(Item=item)
         try:
@@ -145,7 +147,6 @@ async def preguntar(mensajes: List[Message]) -> dict:
     message_history = set_messages_to_api(message_history)
     print('mensajes to api:', message_history)
     # Almacena la pregunta y la respuesta en DynamoDB
-    # Todo: Por alguna razón no está guardando la primer pregunta del user
     dynamo_out = save_QA_dynamodb(dynamo_table, message_history)
     print('Respuesta dynamo:', dynamo_out)
     # Todo: Consultar si es mejor que la salida sea así. Y así mismo guardarlo en dynamo
