@@ -25,7 +25,7 @@ class Message(BaseModel):
 def format_context(relevant_docs):
     # print(relevant_docs)
     return {
-        'text': ' '.join([d.page_content for d in relevant_docs]),
+        'text': '\n---\nContexto:\n'.join([d.page_content for d in relevant_docs]),
         # 'sources': [d.metadata['source'] for d in relevant_docs]
     }
 
@@ -39,18 +39,22 @@ def get_similar_docs(db, query, k):
 def get_system_message_prompt(context):
     # print(context)
 
-    prompt = """Tu nombre es Linguo. Actúas como un asesor de "seguros adl".
-Tu función es responder preguntas e inquitudes acerca del paquete de beneficios de los colaboradores de la empresa.
-Muestra disponibilidad y cordialidad al responder, debes ser preciso.
-Utiliza de acuerdo a la información del "Contexto" que te suministrará el usuario.
-Si el contexto no es suficiente, responde 'Disculpa, no tengo respuesta a tu pregunta, dirígete a maria.forero@avaldigitallabs.com en el canal de slack'"""
+    prompt = (
+        'Tu nombre es Linguo. Actúas como un asesor de "seguros adl". '
+        'Tu función es responder inquitudes del paquete de beneficios de los colaboradores. '
+        'Muestra disponibilidad y cordialidad al responder siendo preciso. '
+        'Siempre responde de acuerdo a la información de "Contexto" dado por el usuario. '
+        'Si el "Contexto" no es suficiente, responde '
+        '"Disculpa, no tengo suficiente información para responder, '
+        'dirígete a maria.forero@avaldigitallabs.com en el canal de slack"'
+    )
     return prompt.format(docs=context)
 
 
 def get_human_message_prompt(question, additional_context=None):
     # print('='*80, 'additional_context:', additional_context)
-    partA = '"Contexto": {context}'
-    partB = 'Pregunta: {question}'
+    partA = '{context}'
+    partB = 'Usuario dice: {question}'
 
     if additional_context:
         prompt = (partA + '\n' + partB).format(context=additional_context,
@@ -79,8 +83,7 @@ def get_more_context(db, chat, messages):
     # Incluimos la mayor cantidad de mensajes posible si no superan 1k tokens
     new_messages = []
 
-    # Todo: Debería conseguir el contexto solo de las preguntas realizadas por el user
-    # Porque el user es el que muestra la intención, la ia podría sesgar esta intención
+    # Conseguir las conversaciones del usuario (excepto la última)
     for message in reversed(messages[1:-1:2]):
         token_count += chat.get_num_tokens(message.content) + 4
         if token_count > 750:
@@ -89,13 +92,18 @@ def get_more_context(db, chat, messages):
 
     # Agregamos los mensajes
     # query_messages = [system_message] + new_messages + [latest_query]
-    query_messages = new_messages + [latest_query]
+    query_messages = new_messages# + [latest_query]
     query_text = '\n'.join(query_messages)
 
     # Agregue más contexto usando solo el último documento más importante. Todo: Si el documento ya está busque otro
-    docs = get_similar_docs(db, query_text, k=3)
+    # TODO: Se podría conseguir esto, sin necesidad de llamar nuevamente la api
+    docs_history = get_similar_docs(db, query_text, k=1)
+
+    # Conseguir el último mensaje del usuario
+    docs_latest = get_similar_docs(db, latest_query, k=3)
+
     # print('\n\n\nDOC\n\n\n'.join([d.page_content for d in docs]))
-    context = format_context(docs)
+    context = format_context(docs_history + docs_latest)
     print(context)
     more_context = context['text']
 
@@ -106,7 +114,7 @@ def get_more_context(db, chat, messages):
     }
 
 
-async def get_response_from_query(db, messages):
+def get_response_from_query(db, messages):
     model_name = 'gpt-3.5-turbo'
     chat = ChatOpenAI(model_name=model_name, temperature=0, verbose=True)
     def get_dt(): return dt.now().strftime("%Y-%m-%dT%H:%M:%S.%f")
@@ -166,7 +174,7 @@ async def get_response_from_query(db, messages):
             [system_message, last_message[0]])
 
         # En reversa agregue mensajes del user siempre y cuando no supere el límite de tokens
-        for message in reversed(messages[1:-1]):
+        for message in reversed(messages[1:-1:2]):
             # todo: Sumar los tokens del rol: system, user, assistant. Contribuyen muy poco
             num_tokens += chat.get_num_tokens(message.content) + 4
             # print('NUM TOKENS:', num_tokens)
@@ -193,6 +201,7 @@ async def get_response_from_query(db, messages):
         # TODO: Enviar esto como salida de error con su mensaje
         raise
 
+    print(q)
     response = chat(q)
     response.additional_kwargs = {
         'id': uuid4(),
@@ -203,46 +212,46 @@ async def get_response_from_query(db, messages):
     }
     return messages + [response]
 
-# import sys
-# base_path = '/home/john/Proyectos/chatbot/chatbot_beneficios/server'
-# sys.path.append(base_path)
-# db = FAISS.load_local(base_path + '/output/embeddings_faiss_index', OpenAIEmbeddings())
+import sys
+base_path = '/home/john/Proyectos/chatbot/chatbot_beneficios/server'
+sys.path.append(base_path)
+db = FAISS.load_local(base_path + '/output/embeddings_faiss_index', OpenAIEmbeddings())
 
-# # 1. Inicialice con el mensaje del usuario
-# message = Message(sender='user',
-#                   text='Hola')
+# 1. Inicialice con el mensaje del usuario
+message = Message(sender='user',
+                  text='Hola')
 
-# # Message history trae el mensaje del sistema + usuario + rta ia (3 en total)
-# message_history = get_response_from_query(
-#     db, [HumanMessage(content=message.text)])
-# print('='*80+'\nRESPUESTA\n'+'='*80 + '\n', message_history[-1])
+# Message history trae el mensaje del sistema + usuario + rta ia (3 en total)
+message_history = get_response_from_query(
+    db, [HumanMessage(content=message.text)])
+print('='*80+'\nRESPUESTA\n'+'='*80 + '\n', message_history[-1])
 
-# # 2. Continue con la convesación (entran 4 msj en total)
-# message = Message(sender='user',
-#                   text='actualmente tengo el ahorro de vacaciones con porvenir. Quisiera saber si puedo realizar retiros totales o parciales en cualquier momento y no solo cuando pida dias de vacaciones.')
+# 2. Continue con la convesación (entran 4 msj en total)
+message = Message(sender='user',
+                  text='no recuerdo si se pueden modificar los beneficios a mitad de año y en que fecha')
 
-# message_history.append(HumanMessage(content=message.text))
+message_history.append(HumanMessage(content=message.text))
 
-# message_history = get_response_from_query(db, message_history)
-# print('='*80+'\nRESPUESTA\n'+'='*80 + '\n', message_history[-1])
+message_history = get_response_from_query(db, message_history)
+print('='*80+'\nRESPUESTA\n'+'='*80 + '\n', message_history[-1])
 
 
-# # 3. Continue con la convesación (entran 5 msj en total)
-# message = Message(sender='user',
-#                   text='')
+# 3. Continue con la convesación (entran 5 msj en total)
+message = Message(sender='user',
+                  text='no recuerdo si se pueden modificar los beneficios a mitad de año y en que fecha')
 
-# message_history.append(HumanMessage(content=message.text))
+message_history.append(HumanMessage(content=message.text))
 
-# message_history = get_response_from_query(db, message_history)
-# print('='*80+'\nRESPUESTA\n'+'='*80 + '\n', message_history[-1])
+message_history = get_response_from_query(db, message_history)
+print('='*80+'\nRESPUESTA\n'+'='*80 + '\n', message_history[-1])
 
-# # 4. Continue con la convesación (entran 6 msj en total)
-# message = Message(sender='user',
-#                   text='y tienes el horario de funcionamiento de algún cajero cerca?')
+# 4. Continue con la convesación (entran 6 msj en total)
+message = Message(sender='user',
+                  text='se pueden modificar los beneficios')
 
-# message_history.append(HumanMessage(content=message.text))
-# message_history = get_response_from_query(db, message_history)
-# print('='*80+'\nRESPUESTA\n'+'='*80 + '\n', message_history[-1])
+message_history.append(HumanMessage(content=message.text))
+message_history = get_response_from_query(db, message_history)
+print('='*80+'\nRESPUESTA\n'+'='*80 + '\n', message_history[-1])
 
 
 # # 5. Continue con la convesación (entran 7 msj en total)

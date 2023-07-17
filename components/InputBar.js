@@ -32,7 +32,7 @@ const InputBar = ({ input, setInput, handleKeyDown, handleSubmit }) => {
         </div>
       </form>
       <div className="pb-2 text-center text-xs text-gray-200 md:pb-4">
-        En desarrollo. Las respuestas podrían no ser correctas. Última actualización 2023-05-12
+        En desarrollo. Las respuestas podrían no ser correctas. v0.0.2. Última actualización 2023-07-17
       </div>
     </div>
   )
