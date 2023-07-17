@@ -23,10 +23,23 @@ class Message(BaseModel):
 
 
 def format_context(relevant_docs):
-    # print(relevant_docs)
+    # TODO: Es posible que otro tipo de documento no tenga Headers ni metadata
+    context = ''
+    for doc in relevant_docs:
+        # Formatear desde markdown
+        metadata = doc.metadata
+        headers = ''
+        if 'Header 1' in metadata:
+            headers = metadata['Header 1']
+        if 'Header 2' in metadata:
+            headers += '\n'+metadata['Header 2']
+        if 'Header 3' in metadata:
+            headers += '\n'+metadata['Header 3']
+        context += headers + '\n' + doc.page_content
+
+    # Sería bueno también retornar la fuente del documento y su índice
     return {
-        'text': '\n---\nContexto:\n'.join([d.page_content for d in relevant_docs]),
-        # 'sources': [d.metadata['source'] for d in relevant_docs]
+        'text': context
     }
 
 
@@ -43,7 +56,7 @@ def get_system_message_prompt(context):
         'Tu nombre es Linguo. Actúas como un asesor de "seguros adl". '
         'Tu función es responder inquitudes del paquete de beneficios de los colaboradores. '
         'Muestra disponibilidad y cordialidad al responder siendo preciso. '
-        'Siempre responde de acuerdo a la información de "Contexto" dado por el usuario. '
+        'Usa la información de "Contexto" dada por el usuario. '
         'Si el "Contexto" no es suficiente, responde '
         '"Disculpa, no tengo suficiente información para responder, '
         'dirígete a maria.forero@avaldigitallabs.com en el canal de slack"'
@@ -53,8 +66,8 @@ def get_system_message_prompt(context):
 
 def get_human_message_prompt(question, additional_context=None):
     # print('='*80, 'additional_context:', additional_context)
-    partA = '{context}'
-    partB = 'Usuario dice: {question}'
+    partA = '\n---\nContexto:\n {context}'
+    partB = '\n---\nUsuario dice: {question}'
 
     if additional_context:
         prompt = (partA + '\n' + partB).format(context=additional_context,
@@ -92,7 +105,7 @@ def get_more_context(db, chat, messages):
 
     # Agregamos los mensajes
     # query_messages = [system_message] + new_messages + [latest_query]
-    query_messages = new_messages# + [latest_query]
+    query_messages = new_messages  # + [latest_query]
     query_text = '\n'.join(query_messages)
 
     # Agregue más contexto usando solo el último documento más importante. Todo: Si el documento ya está busque otro
@@ -100,7 +113,7 @@ def get_more_context(db, chat, messages):
     docs_history = get_similar_docs(db, query_text, k=1)
 
     # Conseguir el último mensaje del usuario
-    docs_latest = get_similar_docs(db, latest_query, k=3)
+    docs_latest = get_similar_docs(db, latest_query, k=6)
 
     # print('\n\n\nDOC\n\n\n'.join([d.page_content for d in docs]))
     context = format_context(docs_history + docs_latest)
@@ -114,7 +127,7 @@ def get_more_context(db, chat, messages):
     }
 
 
-def get_response_from_query(db, messages):
+async def get_response_from_query(db, messages):
     model_name = 'gpt-3.5-turbo'
     chat = ChatOpenAI(model_name=model_name, temperature=0, verbose=True)
     def get_dt(): return dt.now().strftime("%Y-%m-%dT%H:%M:%S.%f")
@@ -124,13 +137,14 @@ def get_response_from_query(db, messages):
     # Inicializa conversación
     if len(messages) == 1:
         query = messages[0].content
-        docs = get_similar_docs(db, query, k=3)
+        docs = get_similar_docs(db, query, k=6)
         # print('\n\n\nDOC\n\n\n'.join([d.page_content for d in docs]))
         context = format_context(docs)
         # sources = context['sources']  # Todo: Pensar como exportar estas fuentes. En los mensajes?
         # system_message_prompt = get_system_message_prompt(context['text'])
         system_message_prompt = get_system_message_prompt(None)
-        human_message_prompt = get_human_message_prompt(query, additional_context=context['text'])
+        human_message_prompt = get_human_message_prompt(
+            query, additional_context=context['text'])
 
         additional_kwargs = messages[0].additional_kwargs
         additional_kwargs = {
@@ -154,7 +168,7 @@ def get_response_from_query(db, messages):
             content=system_message_prompt,
             additional_kwargs=additional_kwargs_system
         )
-        messages = [system_message] + message_user # last_message
+        messages = [system_message] + message_user  # last_message
 
     # Continúa conversación
     else:
@@ -212,46 +226,47 @@ def get_response_from_query(db, messages):
     }
     return messages + [response]
 
-import sys
-base_path = '/home/john/Proyectos/chatbot/chatbot_beneficios/server'
-sys.path.append(base_path)
-db = FAISS.load_local(base_path + '/output/embeddings_faiss_index', OpenAIEmbeddings())
 
-# 1. Inicialice con el mensaje del usuario
-message = Message(sender='user',
-                  text='Hola')
+# import sys
+# base_path = '/home/john/Proyectos/chatbot/chatbot_beneficios/server'
+# sys.path.append(base_path)
+# db = FAISS.load_local(base_path + '/output/embeddings_faiss_index', OpenAIEmbeddings())
 
-# Message history trae el mensaje del sistema + usuario + rta ia (3 en total)
-message_history = get_response_from_query(
-    db, [HumanMessage(content=message.text)])
-print('='*80+'\nRESPUESTA\n'+'='*80 + '\n', message_history[-1])
+# # 1. Inicialice con el mensaje del usuario
+# message = Message(sender='user',
+#                   text='Hola')
 
-# 2. Continue con la convesación (entran 4 msj en total)
-message = Message(sender='user',
-                  text='no recuerdo si se pueden modificar los beneficios a mitad de año y en que fecha')
+# # Message history trae el mensaje del sistema + usuario + rta ia (3 en total)
+# message_history = get_response_from_query(
+#     db, [HumanMessage(content=message.text)])
+# print('='*80+'\nRESPUESTA\n'+'='*80 + '\n', message_history[-1])
 
-message_history.append(HumanMessage(content=message.text))
+# # 2. Continue con la convesación (entran 4 msj en total)
+# message = Message(sender='user',
+#                   text='cuales son los beneficios de compensar')
 
-message_history = get_response_from_query(db, message_history)
-print('='*80+'\nRESPUESTA\n'+'='*80 + '\n', message_history[-1])
+# message_history.append(HumanMessage(content=message.text))
+
+# message_history = get_response_from_query(db, message_history)
+# print('='*80+'\nRESPUESTA\n'+'='*80 + '\n', message_history[-1])
 
 
-# 3. Continue con la convesación (entran 5 msj en total)
-message = Message(sender='user',
-                  text='no recuerdo si se pueden modificar los beneficios a mitad de año y en que fecha')
+# # 3. Continue con la convesación (entran 5 msj en total)
+# message = Message(sender='user',
+#                   text='hablaba de los beneficios compensar')
 
-message_history.append(HumanMessage(content=message.text))
+# message_history.append(HumanMessage(content=message.text))
 
-message_history = get_response_from_query(db, message_history)
-print('='*80+'\nRESPUESTA\n'+'='*80 + '\n', message_history[-1])
+# message_history = get_response_from_query(db, message_history)
+# print('='*80+'\nRESPUESTA\n'+'='*80 + '\n', message_history[-1])
 
-# 4. Continue con la convesación (entran 6 msj en total)
-message = Message(sender='user',
-                  text='se pueden modificar los beneficios')
+# # 4. Continue con la convesación (entran 6 msj en total)
+# message = Message(sender='user',
+#                   text='se pueden modificar los beneficios')
 
-message_history.append(HumanMessage(content=message.text))
-message_history = get_response_from_query(db, message_history)
-print('='*80+'\nRESPUESTA\n'+'='*80 + '\n', message_history[-1])
+# message_history.append(HumanMessage(content=message.text))
+# message_history = get_response_from_query(db, message_history)
+# print('='*80+'\nRESPUESTA\n'+'='*80 + '\n', message_history[-1])
 
 
 # # 5. Continue con la convesación (entran 7 msj en total)
