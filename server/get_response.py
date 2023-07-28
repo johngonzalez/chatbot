@@ -43,23 +43,36 @@ def format_context(relevant_docs):
     }
 
 
-def get_similar_docs(db, query, k):
+def get_similar_docs(db, chat, query, k=4, limit_tokens=3000):
     retriever = db.as_retriever()
-    docs = retriever.get_relevant_documents(query)
-    return docs[:k]
+    revelant_docs = retriever.get_relevant_documents(query)[:k]
+    tokens = 0
+    docs = []
+    for doc in revelant_docs:
+        tokens += chat.get_num_tokens(doc.page_content)
+        if tokens > limit_tokens:
+            print('Warning:', 'No se insertarán algunos docs, superan límite tokens' )
+            break
+        docs.append(doc)
+    return docs
 
 
 def get_system_message_prompt(context):
     # print(context)
 
     prompt = (
-        'Tu nombre es Linguo. Actúas como un asesor de "seguros adl". '
-        'Tu función es responder inquitudes del paquete de beneficios de los colaboradores. '
-        'Muestra disponibilidad y cordialidad al responder siendo preciso. '
-        'Usa la información de "Contexto" dada por el usuario. '
-        'Si el "Contexto" no es suficiente, responde '
-        '"Disculpa, no tengo suficiente información para responder, '
-        'dirígete a maria.forero@avaldigitallabs.com en el canal de slack"'
+        'Tu nombre es Linguo. Actúas como un asesor de "seguros ADL". '
+        'Tu función es responder inquitudes del paquete de beneficios de salud de los colaboradores.\n\n'
+        'Instrucciones:\n'
+        ' - Al responder, debes ser cordial, preciso y siempre debes mostrar disponibilidad.\n'
+        ' - Usa la información de "Contexto" dada por el usuario.\n'
+        ' - Responde la pregunta con la mayor veracidad posible utilizando el "Contexto" proporcionado por el usuario. '
+        ' Si la respuesta no está contenida en el "Contexto" selecciona '
+        'una de estas dos opciones para responder: '
+        '1. "Disculpa, no tengo suficiente información para responder, '
+        'dirígete a maria.forero@avaldigitallabs.com en el canal de slack" o '
+        '2. "Me puedes dar más detalle para atender tu inquietud"\n'
+        ' - Solo responde preguntas relacionadas al paquete de beneficios de ADL'
     )
     return prompt.format(docs=context)
 
@@ -110,10 +123,10 @@ def get_more_context(db, chat, messages):
 
     # Agregue más contexto usando solo el último documento más importante. Todo: Si el documento ya está busque otro
     # TODO: Se podría conseguir esto, sin necesidad de llamar nuevamente la api
-    docs_history = get_similar_docs(db, query_text, k=1)
+    docs_history = get_similar_docs(db, chat, query_text, k=1)
 
     # Conseguir el último mensaje del usuario
-    docs_latest = get_similar_docs(db, latest_query, k=6)
+    docs_latest = get_similar_docs(db, chat, latest_query, k=3)
 
     # print('\n\n\nDOC\n\n\n'.join([d.page_content for d in docs]))
     context = format_context(docs_history + docs_latest)
@@ -129,6 +142,7 @@ def get_more_context(db, chat, messages):
 
 async def get_response_from_query(db, messages):
     model_name = 'gpt-3.5-turbo'
+    # model_name = 'gpt-4'
     chat = ChatOpenAI(model_name=model_name, temperature=0, verbose=True)
     def get_dt(): return dt.now().strftime("%Y-%m-%dT%H:%M:%S.%f")
     default_session_id = uuid4()
@@ -137,7 +151,7 @@ async def get_response_from_query(db, messages):
     # Inicializa conversación
     if len(messages) == 1:
         query = messages[0].content
-        docs = get_similar_docs(db, query, k=6)
+        docs = get_similar_docs(db, chat, query, k=3)
         # print('\n\n\nDOC\n\n\n'.join([d.page_content for d in docs]))
         context = format_context(docs)
         # sources = context['sources']  # Todo: Pensar como exportar estas fuentes. En los mensajes?
@@ -232,9 +246,12 @@ async def get_response_from_query(db, messages):
 # sys.path.append(base_path)
 # db = FAISS.load_local(base_path + '/output/embeddings_faiss_index', OpenAIEmbeddings())
 
-# # 1. Inicialice con el mensaje del usuario
-# message = Message(sender='user',
-#                   text='Hola')
+# # # 1. Inicialice con el mensaje del usuario
+# message = Message(
+#     sender='user',
+#     # text='Cuáles son las diferencias entre colmédica diamante y colmédica záfiro'              
+#     text='hola. cual es la diferencia entre el plan colmédica zafiro y diamante'              
+# )  # auxilio exequial paila
 
 # # Message history trae el mensaje del sistema + usuario + rta ia (3 en total)
 # message_history = get_response_from_query(
@@ -243,7 +260,7 @@ async def get_response_from_query(db, messages):
 
 # # 2. Continue con la convesación (entran 4 msj en total)
 # message = Message(sender='user',
-#                   text='cuales son los beneficios de compensar')
+#                   text='Si por supuesto. Realiza una función en python para realizar esta operación')
 
 # message_history.append(HumanMessage(content=message.text))
 
