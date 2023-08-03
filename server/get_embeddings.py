@@ -28,17 +28,22 @@ def get_embeddigns(doc_paths: List[str], emb_path: str) -> None:
 
 # Asegúrese que estos documentos estén en la dirección indicada
 doc_paths = [
-    'data/app_beneficios.md',
+    'data/info_general.md',
     # 'data/comparativo_sura.md',
     'data/comparativo_salud.md',
     'data/preguntas_respuestas.md',
     'data/vida_alfa.md',
-    'data/sura_global.md',
-    'data/exequial.md',
-    'data/sura_clasico.md',
+    'data/salud_sura_global.md',
+    'data/salud_sura_clasico.md',
     'data/dental_colsanitas.md',
-    'data/Compensar.md',
-    'data/Colsanitas.md',
+    'data/complementario_compensar.md',
+    'data/prepagada_colsanitas.md',
+    'data/prepagada_vetplus.md',
+    'data/prepagada_colmedica.md',
+    'data/prepagada_medisanitas.md',
+    'data/emermedica.md',
+    'data/exequial_mapfre.md',
+    # 
 ]
 
 get_embeddigns(doc_paths, 'output/embeddings_faiss_index')
