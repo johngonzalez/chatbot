@@ -7,4 +7,3 @@ lxml
 tiktoken
 fastapi
 uvicorn
-boto3
