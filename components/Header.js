@@ -5,7 +5,7 @@ const Header = () => {
 <div className="bg-purple-900 text-white text-center py-4">
   <center>
     <div className="flex items-center justify-center">
-      <a href="https://bancodebogota.com" target="_blank" rel="noopener noreferrer">
+      <a href="https://www.adldigitallab.com" target="_blank" rel="noopener noreferrer">
         <img
           src="https://www.adldigitallab.com/assets/images/logo.png"
           alt="Logo ADL"

@@ -60,20 +60,56 @@ def get_similar_docs(db, chat, query, k=4, limit_tokens=3000):
 def get_system_message_prompt(context):
     # print(context)
 
-    prompt = (
-        'Tu nombre es Linguo. Actúas como un asesor de "seguros ADL". '
-        'Tu función es responder inquitudes del paquete de beneficios de salud de los colaboradores.\n\n'
-        'Instrucciones:\n'
-        ' - Al responder, debes ser cordial, preciso y siempre debes mostrar disponibilidad.\n'
-        ' - Usa la información de "Contexto" dada por el usuario.\n'
-        ' - Responde la pregunta con la mayor veracidad posible utilizando el "Contexto" proporcionado por el usuario. '
-        ' Si la respuesta no está contenida en el "Contexto" selecciona '
-        'una de estas dos opciones para responder: '
-        '1. "Disculpa, no tengo suficiente información para responder, '
-        'dirígete a maria.forero@avaldigitallabs.com en el canal de slack" o '
-        '2. "Me puedes dar más detalle para atender tu inquietud"\n'
-        ' - Solo responde preguntas relacionadas al paquete de beneficios de ADL'
-    )
+    prompt = """
+Instrucciones para Interactuar como Asesor de Seguros ADL (Linguo):
+
+¡Hola! En este papel, serás Linguo, un asesor de seguros para la empresa ADL. Tu objetivo es proporcionar respuestas precisas y útiles sobre el paquete de beneficios de salud de los colaboradores. Sigue estas pautas para una interacción efectiva:
+
+1. **Saludo y Propósito:**
+   Comienza saludando amablemente al usuario y presentándote como el asesor de seguros ADL. Hazles saber que estás aquí para ayudar con sus consultas sobre el paquete de beneficios de salud.
+
+2. **Respuestas en el Contexto:**
+   Si la pregunta planteada por el usuario tiene una respuesta en el "Contexto" proporcionado, responde de manera cordial y precisa, brindando la información requerida.
+
+3. **Falta de Información en el Contexto:**
+   Si no encuentras la respuesta en el "Contexto", no te preocupes. Indica que actualmente no tienes la respuesta y sugiere lo siguiente:
+   
+   - Invita al usuario a consultar el canal de Slack (maria.forero@avaldigitallabs.com) para obtener ayuda adicional.
+   - Proporciona un enlace a la página web del prestador de salud correspondiente, de acuerdo a la lista proporcionada en las instrucciones.
+
+4. **Prestadores de Salud:**
+   Si la pregunta está relacionada con un prestador de salud específico (Compensar, Colmedica, Medisanitas, Colsanitas, Sura), proporciona el enlace a su página web oficial para que el usuario pueda obtener más detalles directamente.
+
+5. **Preguntas no Relacionadas:**
+   Si la pregunta no se ajusta a las categorías anteriores, pide al usuario que proporcione más detalles para poder ofrecer una respuesta precisa y útil.
+
+6. **Enfoque Amigable y Disponible:**
+   Mantén un tono amigable y cordial en todas tus respuestas. Asegúrate de que el usuario sepa que estás disponible para ayudar en cualquier momento.
+
+Recuerda que tu conocimiento se limita al paquete de beneficios de salud de ADL. ¡Tu objetivo es hacer que la experiencia del usuario sea lo más positiva y informativa posible!
+"""
+
+
+    # prompt = (
+    #     'Tu nombre es Linguo. Actúas como un asesor de "seguros ADL". '
+    #     'Tu función es responder inquitudes del paquete de beneficios de salud de los colaboradores.\n\n'
+    #     'Instrucciones:\n'
+    #     ' - Si la respuesta no está contenida en el "Contexto" responde: '
+    #     '"Disculpa, no tengo respuesta a tu pregunta, consulta a maria.forero@avaldigitallabs.com en el canal de slack" '
+    #     'y complementa utilizando alguna de estas dos opciones:\n'
+    #     '1. Si es acerca de alguno de los siguientes prestadores de salud, '
+    #     'recomiéndale buscar información en alguna de estas páginas web:\n'
+    #     'Compensar: https://corporativo.compensar.com/salud/plan-complementario/\n'
+    #     'Colmedica: https://www.colmedica.com/productos/planes.aspx\n'
+    #     'Medisanias y colsanitas: https://www.colsanitas.com\n'
+    #     'Colsanitas dental: https://www.colsanitas.com/plan-dental\n'
+    #     'Sura: https://www.segurossura.com.co/paginas/salud/planes.aspx\n'
+    #     '2. sino, pídele más detalle para atender su inquietud.\n'
+    #     ' - Al responder, debes ser cordial, preciso y siempre debes mostrar disponibilidad.\n'
+    #     ' - Usa la información de "Contexto" dada por el usuario.\n'
+    #     ' - Responde la pregunta con la mayor veracidad posible utilizando el "Contexto" proporcionado por el usuario.\n'
+    #     ' - Solo responde preguntas relacionadas al paquete de beneficios de ADL.\n'
+    # )
     return prompt.format(docs=context)
 
 
@@ -140,9 +176,8 @@ def get_more_context(db, chat, messages):
     }
 
 
-async def get_response_from_query(db, messages):
+def get_response_from_query(db, messages):
     model_name = 'gpt-3.5-turbo'
-    # model_name = 'gpt-4'
     chat = ChatOpenAI(model_name=model_name, temperature=0, verbose=True)
     def get_dt(): return dt.now().strftime("%Y-%m-%dT%H:%M:%S.%f")
     default_session_id = uuid4()
@@ -241,26 +276,31 @@ async def get_response_from_query(db, messages):
     return messages + [response]
 
 
-# import sys
-# base_path = '/home/john/Proyectos/chatbot/chatbot_beneficios/server'
-# sys.path.append(base_path)
-# db = FAISS.load_local(base_path + '/output/embeddings_faiss_index', OpenAIEmbeddings())
+import sys
+base_path = '/home/john/Proyectos/chatbot/chatbot_beneficios/server'
+sys.path.append(base_path)
+db = FAISS.load_local(base_path + '/output/embeddings_faiss_index', OpenAIEmbeddings())
 
-# # # 1. Inicialice con el mensaje del usuario
-# message = Message(
-#     sender='user',
-#     # text='Cuáles son las diferencias entre colmédica diamante y colmédica záfiro'              
-#     text='hola. cual es la diferencia entre el plan colmédica zafiro y diamante'              
-# )  # auxilio exequial paila
+# # 1. Inicialice con el mensaje del usuario
+message = Message(
+    sender='user',
+    # text='Cuáles son las diferencias entre colmédica diamante y colmédica záfiro'              
+    text='hola. Cuál es la edad mínima para pensionarse con colmédica zafiro'           
+    # text='Hola, se puede afiliar mi perro en alguno de los planes compensar?'
+    # text='Como es el proceso de reintegro en sura?'
+    # text='Como reclamar la tarjeta de sodexo?'
+)  # auxilio exequial paila
 
-# # Message history trae el mensaje del sistema + usuario + rta ia (3 en total)
-# message_history = get_response_from_query(
-#     db, [HumanMessage(content=message.text)])
-# print('='*80+'\nRESPUESTA\n'+'='*80 + '\n', message_history[-1])
+# Message history trae el mensaje del sistema + usuario + rta ia (3 en total)
+message_history = get_response_from_query(
+    db, [HumanMessage(content=message.text)])
+print('='*80+'\nRESPUESTA\n'+'='*80 + '\n', message_history[-1])
 
 # # 2. Continue con la convesación (entran 4 msj en total)
 # message = Message(sender='user',
-#                   text='Si por supuesto. Realiza una función en python para realizar esta operación')
+#                 #   text='Si por supuesto. Escuche que colmédica diamante tiene un plan para pensionados y quiero saber más al respecto'
+#                 text='Con quien me puedo comunicar, puedes darme el contacto?'
+# )
 
 # message_history.append(HumanMessage(content=message.text))
 
@@ -270,7 +310,7 @@ async def get_response_from_query(db, messages):
 
 # # 3. Continue con la convesación (entran 5 msj en total)
 # message = Message(sender='user',
-#                   text='hablaba de los beneficios compensar')
+#                   text='si exacto')
 
 # message_history.append(HumanMessage(content=message.text))
 
