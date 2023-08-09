@@ -43,7 +43,7 @@ doc_paths = [
     'data/prepagada_medisanitas.md',
     'data/emermedica.md',
     'data/exequial_mapfre.md',
-    # 
+    'data/mascotas_alfa.md',
 ]
 
 get_embeddigns(doc_paths, 'output/embeddings_faiss_index')
